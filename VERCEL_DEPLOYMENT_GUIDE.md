@@ -171,7 +171,11 @@ curl -X POST https://your-project.vercel.app/api/auth/register \
 
 ### Common Issues:
 
-1. **Database Connection Errors**
+1. **"The `functions` property cannot be used in conjunction with the `builds` property" Error**
+   - ✅ **FIXED**: Removed conflicting `builds` property from vercel.json
+   - Modern Vercel automatically detects Node.js functions in `api/` directory
+
+2. **Database Connection Errors**
    - Ensure `MONGODB_URI` is correctly set in Vercel environment variables
    - Check that your MongoDB cluster allows connections from all IPs (0.0.0.0/0)
 

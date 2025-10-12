@@ -68,11 +68,10 @@ try {
     allImportsWork = false;
   }
   
-  if (vercelConfig.builds && vercelConfig.builds.length > 0) {
-    console.log('✅ Builds configuration present');
+  if (vercelConfig.functions) {
+    console.log('✅ Functions configuration present');
   } else {
-    console.log('❌ Missing builds configuration');
-    allImportsWork = false;
+    console.log('⚠️  Functions configuration not specified (will use defaults)');
   }
   
   if (vercelConfig.routes && vercelConfig.routes.length > 0) {
