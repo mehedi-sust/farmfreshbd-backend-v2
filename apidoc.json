@@ -1,0 +1,27 @@
+{
+  "name": "FarmFresh BD API",
+  "version": "1.0.0",
+  "description": "RESTful API for FarmFresh BD platform - Farm management and e-commerce",
+  "title": "FarmFresh BD API Documentation",
+  "url": "https://api.farmfreshbd.com",
+  "sampleUrl": "https://api.farmfreshbd.com",
+  "header": {
+    "title": "Introduction",
+    "content": "<h1>FarmFresh BD API</h1>\n<p>Welcome to the FarmFresh BD API documentation. This API provides endpoints for farm management, product listings, e-commerce functionality, and more.</p>\n<h2>Authentication</h2>\n<p>Most endpoints require authentication using JWT tokens. Include the token in the Authorization header:</p>\n<pre><code>Authorization: Bearer YOUR_TOKEN</code></pre>\n<h2>Base URL</h2>\n<p>Production: <code>https://api.farmfreshbd.com</code></p>\n<p>Development: <code>http://localhost:8000</code></p>\n<h2>Response Format</h2>\n<p>All responses are in JSON format.</p>\n<p>Success responses return the requested data.</p>\n<p>Error responses follow this format:</p>\n<pre><code>{\n  \"error\": \"Error message description\"\n}</code></pre>"
+  },
+  "footer": {
+    "title": "Support",
+    "content": "<p>For support, email support@farmfreshbd.com</p>"
+  },
+  "order": [
+    "Authentication",
+    "Farms",
+    "Products",
+    "Store",
+    "Cart",
+    "Orders",
+    "Management",
+    "Statistics",
+    "System"
+  ]
+}

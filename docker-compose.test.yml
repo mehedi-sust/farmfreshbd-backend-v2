@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # Test MongoDB Database
+  mongodb-test:
+    image: mongo:7.0
+    container_name: farmfresh-mongodb-test
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: farmfreshbd_test
+    networks:
+      - farmfresh-test-network
+
+  # API Tests
+  api-test:
+    build: .
+    container_name: farmfresh-api-test
+    environment:
+      - MONGODB_URI=mongodb://mongodb-test:27017/farmfreshbd_test
+      - JWT_SECRET=test-secret-key
+      - NODE_ENV=test
+    depends_on:
+      - mongodb-test
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - farmfresh-test-network
+    command: npm test
+
+networks:
+  farmfresh-test-network:
+    driver: bridge

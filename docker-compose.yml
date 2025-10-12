@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: farmfresh-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: farmfreshbd
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - farmfresh-network
+
+  # Express.js API
+  api:
+    build: .
+    container_name: farmfresh-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/farmfreshbd
+      - JWT_SECRET=your-secret-key-change-this-in-production
+      - PORT=8000
+      - NODE_ENV=development
+    depends_on:
+      - mongodb
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - farmfresh-network
+    command: npm run dev
+
+volumes:
+  mongodb_data:
+
+networks:
+  farmfresh-network:
+    driver: bridge
