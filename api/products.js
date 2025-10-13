@@ -226,4 +226,65 @@ router.delete('/:productId', authenticate, asyncHandler(async (req, res) => {
   res.json({ message: 'Product deleted successfully' });
 }));
 
+// ===== PRODUCT BATCHES ROUTES =====
+
+// Create batch - POST /products/batches
+router.post('/batches', authenticate, asyncHandler(async (req, res) => {
+  const { name, farm_id } = req.body;
+
+  if (!name || !farm_id) {
+    return res.status(400).json({ error: 'Name and farm_id are required' });
+  }
+
+  const { db } = await connectToDatabase();
+  await verifyFarmAccess(farm_id, req.user.userId, db);
+
+  const { product_batches } = await getCollections(db);
+
+  const batchDoc = {
+    name,
+    farm_id: toObjectId(farm_id),
+    created_at: new Date(),
+  };
+
+  const result = await product_batches.insertOne(batchDoc);
+  const created = await product_batches.findOne({ _id: result.insertedId });
+
+  res.status(201).json(serializeDoc(created));
+}));
+
+// Get batches by farm - GET /products/batches/farm/:farm_id
+router.get('/batches/farm/:farm_id', authenticate, asyncHandler(async (req, res) => {
+  const { farm_id } = req.params;
+
+  if (!farm_id) {
+    return res.status(400).json({ error: 'farm_id is required' });
+  }
+
+  const { db } = await connectToDatabase();
+  await verifyFarmAccess(farm_id, req.user.userId, db);
+
+  const { product_batches } = await getCollections(db);
+
+  const batches = await product_batches.find({ farm_id: toObjectId(farm_id) }).toArray();
+  res.json(serializeDocs(batches));
+}));
+
+// Get batches (query parameter version) - GET /products/batches?farm_id=xxx
+router.get('/batches', authenticate, asyncHandler(async (req, res) => {
+  const { farm_id } = req.query;
+
+  if (!farm_id) {
+    return res.status(400).json({ error: 'farm_id query parameter is required' });
+  }
+
+  const { db } = await connectToDatabase();
+  await verifyFarmAccess(farm_id, req.user.userId, db);
+
+  const { product_batches } = await getCollections(db);
+
+  const batches = await product_batches.find({ farm_id: toObjectId(farm_id) }).toArray();
+  res.json(serializeDocs(batches));
+}));
+
 module.exports = router;

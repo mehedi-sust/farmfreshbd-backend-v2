@@ -52,7 +52,7 @@ async function testSeparation() {
 
     // Step 3: Create a test expense
     console.log('\n3️⃣ Creating test expense...');
-    const expenseResponse = await fetch(`${BACKEND_URL}/expenses`, {
+    const expenseResponse = await fetch(`${BACKEND_URL}/finance/expenses`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -77,7 +77,7 @@ async function testSeparation() {
 
     // Step 4: Create a test investment
     console.log('\n4️⃣ Creating test investment...');
-    const investmentResponse = await fetch(`${BACKEND_URL}/investments`, {
+    const investmentResponse = await fetch(`${BACKEND_URL}/finance/investments`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -101,7 +101,7 @@ async function testSeparation() {
 
     // Step 5: Fetch expenses
     console.log('\n5️⃣ Fetching expenses...');
-    const getExpensesResponse = await fetch(`${BACKEND_URL}/expenses?farm_id=${farmId}`, {
+    const getExpensesResponse = await fetch(`${BACKEND_URL}/finance/expenses?farm_id=${farmId}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -121,7 +121,7 @@ async function testSeparation() {
 
     // Step 6: Fetch investments
     console.log('\n6️⃣ Fetching investments...');
-    const getInvestmentsResponse = await fetch(`${BACKEND_URL}/investments?farm_id=${farmId}`, {
+    const getInvestmentsResponse = await fetch(`${BACKEND_URL}/finance/investments?farm_id=${farmId}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

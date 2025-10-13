@@ -34,7 +34,7 @@ async function login() {
 async function testCreateBatch() {
   console.log('\n📦 Testing Create Product Batch (POST /product_batches)...');
   try {
-    const response = await axios.post(`${API_URL}/product_batches/batches`, {
+    const response = await axios.post(`${API_URL}/products/batches`, {
       name: `Test Batch ${Date.now()}`,
       farm_id: farmId,
     }, {
@@ -59,7 +59,7 @@ async function testCreateBatch() {
 async function testGetBatchesByFarm() {
   console.log('\n📋 Testing Get Batches by Farm (GET /product_batches/farm/:farm_id)...');
   try {
-    const response = await axios.get(`${API_URL}/product_batches/farm/${farmId}`, {
+    const response = await axios.get(`${API_URL}/products/batches/farm/${farmId}`, {
       headers: {
         'Authorization': `Bearer ${authToken}`,
       },
@@ -82,7 +82,7 @@ async function testGetBatchesByFarm() {
 async function testGetBatchesQuery() {
   console.log('\n📋 Testing Get Batches (GET /product_batches/batches?farm_id=xxx)...');
   try {
-    const response = await axios.get(`${API_URL}/product_batches/batches`, {
+    const response = await axios.get(`${API_URL}/products/batches`, {
       params: { farm_id: farmId },
       headers: {
         'Authorization': `Bearer ${authToken}`,

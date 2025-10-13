@@ -25,13 +25,13 @@ const authRouter = require('../api/auth');
 console.log('🔍 Auth router imported:', typeof authRouter, authRouter.stack?.length, 'routes');
 const farmsRouter = require('../api/farms');
 const productsRouter = require('../api/products');
-const productBatchesRouter = require('../api/product-batches');
+const financeRouter = require('../api/finance');
 const storeProductsRouter = require('../api/store_products');
 const statsRouter = require('../api/stats');
 const adminRouter = require('../api/admin');
-const expensesRouter = require('../api/expenses');
-const expenseTypesRouter = require('../api/expense-types');
-const investmentsRouter = require('../api/investments');
+
+
+
 const salesRouter = require('../api/sales');
 const reportsRouter = require('../api/reports');
 const cartRouter = require('../api/cart');
@@ -46,14 +46,10 @@ app.use('/api/auth', authRouter);
 console.log('🔍 Auth router mounted successfully');
 app.use('/api/farms', farmsRouter);
 app.use('/api/products', productsRouter);
-app.use('/api/product_batches', productBatchesRouter);
-app.use('/api/management/batches', productBatchesRouter);
+app.use('/api/finance', financeRouter);
 app.use('/api/store_products', storeProductsRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/expenses', expensesRouter);
-app.use('/api/expense_types', expenseTypesRouter);
-app.use('/api/investments', investmentsRouter);
 app.use('/api/sales', salesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/cart', cartRouter);
@@ -65,12 +61,9 @@ app.use('/login', authRouter);
 app.use('/users', authRouter); // FastAPI used /users/login and /users/register
 app.use('/farms', farmsRouter);
 app.use('/products', productsRouter);
-app.use('/product_batches', productBatchesRouter);
+app.use('/finance', financeRouter);
 app.use('/store_products', storeProductsRouter);
 app.use('/stats', statsRouter);
-app.use('/expenses', expensesRouter);
-app.use('/expense_types', expenseTypesRouter);
-app.use('/investments', investmentsRouter);
 app.use('/sales', salesRouter);
 app.use('/reports', reportsRouter);
 app.use('/cart', cartRouter);

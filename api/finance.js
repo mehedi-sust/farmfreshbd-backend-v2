@@ -5,8 +5,62 @@ const { asyncHandler, serializeDoc, serializeDocs, toObjectId, verifyFarmAccess 
 
 const router = express.Router();
 
-// Create expense type - POST /expense_types
-router.post('/', authenticate, asyncHandler(async (req, res) => {
+// ===== EXPENSES ROUTES =====
+
+// Create expense - POST /finance/expenses
+router.post('/expenses', authenticate, asyncHandler(async (req, res) => {
+  const { type, description, amount, farm_id, product_batch } = req.body;
+
+  if (!type || !description || !amount || !farm_id || !product_batch) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  const { db } = await connectToDatabase();
+  await verifyFarmAccess(farm_id, req.user.userId, db);
+
+  const { expenses } = await getCollections(db);
+
+  const expenseDoc = {
+    type,
+    description,
+    amount: parseFloat(amount),
+    farm_id: toObjectId(farm_id),
+    product_batch,
+    date: new Date(),
+  };
+
+  const result = await expenses.insertOne(expenseDoc);
+  const created = await expenses.findOne({ _id: result.insertedId });
+
+  res.status(201).json(serializeDoc(created));
+}));
+
+// Get expenses - GET /finance/expenses?farm_id=xxx&product_batch=xxx
+router.get('/expenses', authenticate, asyncHandler(async (req, res) => {
+  const { farm_id, product_batch } = req.query;
+
+  if (!farm_id) {
+    return res.status(400).json({ error: 'farm_id is required' });
+  }
+
+  const { db } = await connectToDatabase();
+  await verifyFarmAccess(farm_id, req.user.userId, db);
+
+  const { expenses } = await getCollections(db);
+
+  const query = { farm_id: toObjectId(farm_id) };
+  if (product_batch) {
+    query.product_batch = product_batch;
+  }
+
+  const expensesList = await expenses.find(query).toArray();
+  res.json(serializeDocs(expensesList));
+}));
+
+// ===== EXPENSE TYPES ROUTES =====
+
+// Create expense type - POST /finance/expense-types
+router.post('/expense-types', authenticate, asyncHandler(async (req, res) => {
   const { name, farm_id } = req.body;
 
   if (!name || !farm_id) {
@@ -14,9 +68,6 @@ router.post('/', authenticate, asyncHandler(async (req, res) => {
   }
 
   const { db } = await connectToDatabase();
-  console.log('🔍 db object:', db ? 'defined' : 'undefined');
-  console.log('🔍 db type:', typeof db);
-  
   await verifyFarmAccess(farm_id, req.user.userId, db);
 
   const { expense_types } = await getCollections(db);
@@ -34,8 +85,8 @@ router.post('/', authenticate, asyncHandler(async (req, res) => {
   res.status(201).json(serializeDoc(created));
 }));
 
-// Get expense types by farm - GET /expense_types/farm/:farm_id
-router.get('/farm/:farm_id', authenticate, asyncHandler(async (req, res) => {
+// Get expense types by farm - GET /finance/expense-types/farm/:farm_id
+router.get('/expense-types/farm/:farm_id', authenticate, asyncHandler(async (req, res) => {
   const { farm_id } = req.params;
 
   if (!farm_id) {
@@ -58,8 +109,8 @@ router.get('/farm/:farm_id', authenticate, asyncHandler(async (req, res) => {
   res.json(serializeDocs(types));
 }));
 
-// Get expense types (query parameter version) - GET /expense_types?farm_id=xxx
-router.get('/', authenticate, asyncHandler(async (req, res) => {
+// Get expense types (query parameter version) - GET /finance/expense-types?farm_id=xxx
+router.get('/expense-types', authenticate, asyncHandler(async (req, res) => {
   const { farm_id } = req.query;
 
   const { db } = await connectToDatabase();
@@ -76,8 +127,8 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
   res.json(serializeDocs(types));
 }));
 
-// Update expense type - PUT /expense_types/:id
-router.put('/:id', authenticate, asyncHandler(async (req, res) => {
+// Update expense type - PUT /finance/expense-types/:id
+router.put('/expense-types/:id', authenticate, asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
 
@@ -111,8 +162,8 @@ router.put('/:id', authenticate, asyncHandler(async (req, res) => {
   res.json(serializeDoc(updated));
 }));
 
-// Delete expense type - DELETE /expense_types/:id
-router.delete('/:id', authenticate, asyncHandler(async (req, res) => {
+// Delete expense type - DELETE /finance/expense-types/:id
+router.delete('/expense-types/:id', authenticate, asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const { db } = await connectToDatabase();
@@ -136,8 +187,8 @@ router.delete('/:id', authenticate, asyncHandler(async (req, res) => {
   res.json({ message: 'Expense type deleted successfully' });
 }));
 
-// Initialize default expense types - POST /expense_types/init-defaults
-router.post('/init-defaults', authenticate, asyncHandler(async (req, res) => {
+// Initialize default expense types - POST /finance/expense-types/init-defaults
+router.post('/expense-types/init-defaults', authenticate, asyncHandler(async (req, res) => {
   const { db } = await connectToDatabase();
   const { expense_types } = await getCollections(db);
 
@@ -174,6 +225,55 @@ router.post('/init-defaults', authenticate, asyncHandler(async (req, res) => {
     results,
     all_defaults: serializeDocs(allDefaults)
   });
+}));
+
+// ===== INVESTMENTS ROUTES =====
+
+// Create investment - POST /finance/investments
+router.post('/investments', authenticate, asyncHandler(async (req, res) => {
+  const { type, description, amount, farm_id, date } = req.body;
+
+  if (!type || !description || !amount || !farm_id) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  const { db } = await connectToDatabase();
+  await verifyFarmAccess(farm_id, req.user.userId, db);
+
+  const { investments } = await getCollections(db);
+
+  const investmentDoc = {
+    type,
+    description,
+    amount: parseFloat(amount),
+    farm_id: toObjectId(farm_id),
+    date: date ? new Date(date) : new Date(),
+    created_at: new Date(),
+  };
+
+  const result = await investments.insertOne(investmentDoc);
+  const created = await investments.findOne({ _id: result.insertedId });
+
+  res.status(201).json(serializeDoc(created));
+}));
+
+// Get investments - GET /finance/investments?farm_id=xxx
+router.get('/investments', authenticate, asyncHandler(async (req, res) => {
+  const { farm_id } = req.query;
+
+  if (!farm_id) {
+    return res.status(400).json({ error: 'farm_id is required' });
+  }
+
+  const { db } = await connectToDatabase();
+  await verifyFarmAccess(farm_id, req.user.userId, db);
+
+  const { investments } = await getCollections(db);
+
+  const query = { farm_id: toObjectId(farm_id) };
+  const investmentsList = await investments.find(query).sort({ date: -1 }).toArray();
+  
+  res.json(serializeDocs(investmentsList));
 }));
 
 module.exports = router;
