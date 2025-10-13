@@ -4,91 +4,91 @@
   "routes": [
     {
       "src": "/api/auth/(.*)",
-      "dest": "/api/auth.js"
+      "dest": "/api/core.js"
     },
     {
       "src": "/api/products/(.*)",
-      "dest": "/api/products.js"
+      "dest": "/api/core.js"
     },
     {
       "src": "/api/store_products/(.*)",
-      "dest": "/api/store_products.js"
+      "dest": "/api/core.js"
     },
     {
       "src": "/api/farms/(.*)",
-      "dest": "/api/farms.js"
-    },
-    {
-      "src": "/api/stats/(.*)",
-      "dest": "/api/stats.js"
+      "dest": "/api/core.js"
     },
     {
       "src": "/api/admin/(.*)",
-      "dest": "/api/admin.js"
+      "dest": "/api/management.js"
     },
     {
       "src": "/api/finance/(.*)",
-      "dest": "/api/finance.js"
+      "dest": "/api/management.js"
     },
     {
-      "src": "/api/cart/(.*)",
-      "dest": "/api/cart.js"
-    },
-    {
-      "src": "/api/orders/(.*)",
-      "dest": "/api/orders.js"
-    },
-    {
-      "src": "/api/sales/(.*)",
-      "dest": "/api/sales.js"
+      "src": "/api/stats/(.*)",
+      "dest": "/api/management.js"
     },
     {
       "src": "/api/reports/(.*)",
-      "dest": "/api/reports.js"
+      "dest": "/api/management.js"
+    },
+    {
+      "src": "/api/cart/(.*)",
+      "dest": "/api/commerce.js"
+    },
+    {
+      "src": "/api/orders/(.*)",
+      "dest": "/api/commerce.js"
+    },
+    {
+      "src": "/api/sales/(.*)",
+      "dest": "/api/commerce.js"
     },
     {
       "src": "/api/auth",
-      "dest": "/api/auth.js"
+      "dest": "/api/core.js"
     },
     {
       "src": "/api/products",
-      "dest": "/api/products.js"
+      "dest": "/api/core.js"
     },
     {
       "src": "/api/store_products",
-      "dest": "/api/store_products.js"
+      "dest": "/api/core.js"
     },
     {
       "src": "/api/farms",
-      "dest": "/api/farms.js"
-    },
-    {
-      "src": "/api/stats",
-      "dest": "/api/stats.js"
+      "dest": "/api/core.js"
     },
     {
       "src": "/api/admin",
-      "dest": "/api/admin.js"
+      "dest": "/api/management.js"
     },
     {
       "src": "/api/finance",
-      "dest": "/api/finance.js"
+      "dest": "/api/management.js"
     },
     {
-      "src": "/api/cart",
-      "dest": "/api/cart.js"
-    },
-    {
-      "src": "/api/orders",
-      "dest": "/api/orders.js"
-    },
-    {
-      "src": "/api/sales",
-      "dest": "/api/sales.js"
+      "src": "/api/stats",
+      "dest": "/api/management.js"
     },
     {
       "src": "/api/reports",
-      "dest": "/api/reports.js"
+      "dest": "/api/management.js"
+    },
+    {
+      "src": "/api/cart",
+      "dest": "/api/commerce.js"
+    },
+    {
+      "src": "/api/orders",
+      "dest": "/api/commerce.js"
+    },
+    {
+      "src": "/api/sales",
+      "dest": "/api/commerce.js"
     },
     {
       "src": "/api/(.*)",
@@ -100,7 +100,16 @@
     }
   ],
   "functions": {
-    "api/**/*.js": {
+    "api/core.js": {
+      "maxDuration": 30
+    },
+    "api/management.js": {
+      "maxDuration": 30
+    },
+    "api/commerce.js": {
+      "maxDuration": 30
+    },
+    "api/index.js": {
       "maxDuration": 30
     }
   },
