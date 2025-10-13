@@ -20,54 +20,37 @@ app.use('/api-docs', express.static(path.join(__dirname, '../public')));
 
 // Import API routes (only the ones that exist)
 const indexRouter = require('../api/index');
-console.log('🔍 Importing auth router...');
+const coreRouter = require('../api/core');
+const managementRouter = require('../api/management');
+const commerceRouter = require('../api/commerce');
 const authRouter = require('../api/auth');
-console.log('🔍 Auth router imported:', typeof authRouter, authRouter.stack?.length, 'routes');
-const farmsRouter = require('../api/farms');
-const productsRouter = require('../api/products');
-const financeRouter = require('../api/finance');
-const storeProductsRouter = require('../api/store_products');
-const statsRouter = require('../api/stats');
-const adminRouter = require('../api/admin');
-
-
-
-const salesRouter = require('../api/sales');
-const reportsRouter = require('../api/reports');
-const cartRouter = require('../api/cart');
-const ordersRouter = require('../api/orders');
 
 // Mount routes
 // app.use('/', indexRouter); // Commented out - this is a serverless function, not an Express router
 
 // Mount routes WITH /api prefix (new style)
-console.log('🔍 Mounting auth router at /api/auth...');
+app.use('/api', coreRouter);
+app.use('/api', managementRouter);
+app.use('/api', commerceRouter);
 app.use('/api/auth', authRouter);
-console.log('🔍 Auth router mounted successfully');
-app.use('/api/farms', farmsRouter);
-app.use('/api/products', productsRouter);
-app.use('/api/finance', financeRouter);
-app.use('/api/store_products', storeProductsRouter);
-app.use('/api/stats', statsRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/sales', salesRouter);
-app.use('/api/reports', reportsRouter);
-app.use('/api/cart', cartRouter);
-app.use('/api/orders', ordersRouter);
 
-// Mount routes WITHOUT /api prefix (FastAPI compatibility)
-app.use('/register', authRouter);
-app.use('/login', authRouter);
-app.use('/users', authRouter); // FastAPI used /users/login and /users/register
-app.use('/farms', farmsRouter);
-app.use('/products', productsRouter);
-app.use('/finance', financeRouter);
-app.use('/store_products', storeProductsRouter);
-app.use('/stats', statsRouter);
-app.use('/sales', salesRouter);
-app.use('/reports', reportsRouter);
-app.use('/cart', cartRouter);
-app.use('/orders', ordersRouter);
+// Mount routes WITHOUT /api prefix for frontend compatibility
+app.use('/', coreRouter);
+app.use('/', managementRouter);
+app.use('/', commerceRouter);
+app.use('/auth', authRouter);
+app.use('/users', authRouter); // For frontend compatibility (/users/login, /users/register)
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    database: 'connected'
+  });
+});
 
 // Error logger
 app.use(errorLogger);
@@ -83,12 +66,11 @@ app.use((err, req, res, next) => {
 // 404 handler
 app.use((req, res) => {
   console.log('🔍 404 Handler - Path:', req.path, 'Method:', req.method);
-  console.log('🔍 Available routes on authRouter:', authRouter.stack?.map(layer => layer.route?.path));
   res.status(404).json({ 
     error: 'Endpoint not found',
     path: req.path,
     method: req.method,
-    message: 'Please use specific API endpoints like /api/auth, /api/farms, etc.'
+    message: 'Please use specific API endpoints like /api/store_products, /api/sales, etc.'
   });
 });
 
