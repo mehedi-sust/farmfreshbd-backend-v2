@@ -1,12 +1,12 @@
 require('dotenv').config();
-const { connectToDatabase, getCollections } = require('./src/config/database');
+const { connectToDatabase, getCollections } = require('../src/config/database');
 
 async function checkCollections() {
   try {
     console.log('🔍 Checking database collections...\n');
     
     const { db } = await connectToDatabase();
-    const { productBatches, expenseTypes } = getCollections(db);
+    const { productBatches, expenseTypes } = await getCollections(db);
 
     // Check product_batches collection
     console.log('📦 PRODUCT BATCHES Collection:');

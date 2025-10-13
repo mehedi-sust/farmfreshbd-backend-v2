@@ -18,41 +18,46 @@ app.use(requestLogger);
 app.use('/docs', express.static(path.join(__dirname, '../docs')));
 app.use('/api-docs', express.static(path.join(__dirname, '../public')));
 
-// Import API routes
+// Import API routes (only the ones that exist)
 const indexRouter = require('../api/index');
+console.log('🔍 Importing auth router...');
 const authRouter = require('../api/auth');
+console.log('🔍 Auth router imported:', typeof authRouter, authRouter.stack?.length, 'routes');
 const farmsRouter = require('../api/farms');
 const productsRouter = require('../api/products');
-const storeRouter = require('../api/store');
-const cartRouter = require('../api/cart');
-const ordersRouter = require('../api/orders');
-const managementRouter = require('../api/management');
 const productBatchesRouter = require('../api/product-batches');
+const storeProductsRouter = require('../api/store_products');
+const statsRouter = require('../api/stats');
+const adminRouter = require('../api/admin');
 const expensesRouter = require('../api/expenses');
 const expenseTypesRouter = require('../api/expense-types');
 const investmentsRouter = require('../api/investments');
 const salesRouter = require('../api/sales');
-const statsRouter = require('../api/stats');
-const reviewsRouter = require('../api/reviews');
-const databaseRouter = require('../api/database');
-const reportsRouter = require('../api/reports-new');
-const adminRouter = require('../api/admin');
+const reportsRouter = require('../api/reports');
+const cartRouter = require('../api/cart');
+const ordersRouter = require('../api/orders');
 
 // Mount routes
-app.use('/', indexRouter);
+// app.use('/', indexRouter); // Commented out - this is a serverless function, not an Express router
 
 // Mount routes WITH /api prefix (new style)
+console.log('🔍 Mounting auth router at /api/auth...');
 app.use('/api/auth', authRouter);
+console.log('🔍 Auth router mounted successfully');
 app.use('/api/farms', farmsRouter);
 app.use('/api/products', productsRouter);
-app.use('/api/store_products', storeRouter);
+app.use('/api/product_batches', productBatchesRouter);
+app.use('/api/management/batches', productBatchesRouter);
+app.use('/api/store_products', storeProductsRouter);
+app.use('/api/stats', statsRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api/expenses', expensesRouter);
+app.use('/api/expense_types', expenseTypesRouter);
+app.use('/api/investments', investmentsRouter);
+app.use('/api/sales', salesRouter);
+app.use('/api/reports', reportsRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/orders', ordersRouter);
-app.use('/api/management', managementRouter);
-app.use('/api/stats', statsRouter);
-app.use('/api/database', databaseRouter);
-app.use('/api/reports', reportsRouter);
-app.use('/api/admin', adminRouter);
 
 // Mount routes WITHOUT /api prefix (FastAPI compatibility)
 app.use('/register', authRouter);
@@ -60,19 +65,16 @@ app.use('/login', authRouter);
 app.use('/users', authRouter); // FastAPI used /users/login and /users/register
 app.use('/farms', farmsRouter);
 app.use('/products', productsRouter);
-app.use('/store_products', storeRouter);
-app.use('/cart', cartRouter);
-app.use('/orders', ordersRouter);
 app.use('/product_batches', productBatchesRouter);
+app.use('/store_products', storeProductsRouter);
+app.use('/stats', statsRouter);
 app.use('/expenses', expensesRouter);
 app.use('/expense_types', expenseTypesRouter);
 app.use('/investments', investmentsRouter);
 app.use('/sales', salesRouter);
-app.use('/stats', statsRouter);
-app.use('/reviews', reviewsRouter);
-app.use('/api/reviews', reviewsRouter);
-app.use('/database', databaseRouter);
 app.use('/reports', reportsRouter);
+app.use('/cart', cartRouter);
+app.use('/orders', ordersRouter);
 
 // Error logger
 app.use(errorLogger);
@@ -87,7 +89,14 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
+  console.log('🔍 404 Handler - Path:', req.path, 'Method:', req.method);
+  console.log('🔍 Available routes on authRouter:', authRouter.stack?.map(layer => layer.route?.path));
+  res.status(404).json({ 
+    error: 'Endpoint not found',
+    path: req.path,
+    method: req.method,
+    message: 'Please use specific API endpoints like /api/auth, /api/farms, etc.'
+  });
 });
 
 // Start server with database connection check

@@ -1,229 +1,229 @@
 /**
- * Products API endpoints for Vercel serverless deployment
- * Handles product CRUD operations
+ * @api {post} /api/products Create Product
+ * @apiName CreateProduct
+ * @apiGroup Products
+ * @apiVersion 1.0.0
+ * @apiPermission authenticated
+ * 
+ * @apiHeader {String} Authorization Bearer token
+ * 
+ * @apiBody {String} name Product name
+ * @apiBody {String="animal","produce"} type Product type
+ * @apiBody {Number} quantity Quantity
+ * @apiBody {Number} total_price Total price
+ * @apiBody {String} farm_id Farm ID
+ * @apiBody {String} product_batch Batch ID or name
+ * 
+ * @apiSuccess {Object} product Created product
  */
 
+const express = require('express');
+
 const { connectToDatabase, getCollections } = require('../src/config/database');
-const { ObjectId } = require('mongodb');
-const { serializeDoc } = require('../src/utils/helpers');
+const { authenticate, optionalAuth } = require('../src/config/auth');
+const { asyncHandler, serializeDoc, serializeDocs, toObjectId, verifyFarmAccess } = require('../src/utils/helpers');
 
-// Serverless function handler
-module.exports = async (req, res) => {
-  // Set CORS headers - allow all origins for development
-  const origin = req.headers.origin;
-  res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+const router = express.Router();
 
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+
+
+// Create product
+router.post('/', authenticate, asyncHandler(async (req, res) => {
+  const { name, type, quantity, total_price, farm_id, product_batch } = req.body;
+
+  if (!name || !type || !quantity || total_price === undefined || !farm_id || !product_batch) {
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  try {
-    // Connect to database
-    await connectToDatabase();
-    const { products } = await getCollections();
-
-    const { method, url } = req;
-    const path = url.replace('/api/products', '').replace('/products', '');
-
-    // Route handling
-    if (method === 'GET' && (path === '' || path === '/')) {
-      return await handleGetProducts(req, res, products);
-    }
-    
-    if (method === 'POST' && (path === '' || path === '/')) {
-      return await handleCreateProduct(req, res, products);
-    }
-
-    if (method === 'GET' && path.startsWith('/')) {
-      const id = path.substring(1);
-      return await handleGetProduct(req, res, products, id);
-    }
-
-    if (method === 'PUT' && path.startsWith('/')) {
-      const id = path.substring(1);
-      return await handleUpdateProduct(req, res, products, id);
-    }
-
-    if (method === 'DELETE' && path.startsWith('/')) {
-      const id = path.substring(1);
-      return await handleDeleteProduct(req, res, products, id);
-    }
-
-    // If no route matches
-    return res.status(404).json({ 
-      error: 'Products endpoint not found',
-      path: path,
-      method: method
-    });
-
-  } catch (error) {
-    console.error('Products API Error:', error);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: error.message
-    });
+  if (quantity <= 0) {
+    return res.status(400).json({ error: 'Quantity must be greater than 0' });
   }
-};
 
-// Get products handler
-async function handleGetProducts(req, res, products) {
-  const { 
-    page = 1, 
-    limit = 20, 
-    search = '', 
-    category = '', 
-    farm_id = '',
-    sort = 'created_at',
-    order = 'desc'
-  } = req.query;
+  if (total_price < 0) {
+    return res.status(400).json({ error: 'Total price cannot be negative' });
+  }
 
-  // Build query
+  const { db } = await connectToDatabase();
+  await verifyFarmAccess(farm_id, req.user.userId, db);
+
+  const { products, product_batches: productBatches } = await getCollections(db);
+
+  // Resolve batch ID
+  let batchId = product_batch;
+  if (product_batch.length !== 24) {
+    const batch = await productBatches.findOne({ 
+      name: product_batch, 
+      farm_id: toObjectId(farm_id) 
+    });
+    if (!batch) {
+      return res.status(400).json({ error: 'Product batch not found' });
+    }
+    batchId = batch._id.toString();
+  }
+
+  const productDoc = {
+    name,
+    type,
+    quantity: parseInt(quantity),
+    unit_price: parseFloat(total_price) / parseInt(quantity),
+    total_value: parseFloat(total_price),
+    farm_id: toObjectId(farm_id),
+    product_batch: batchId,
+    status: 'unsold',
+    show_in_profile: true,
+    created_at: new Date(),
+    updated_at: new Date(),
+  };
+
+  const result = await products.insertOne(productDoc);
+  const createdProduct = await products.findOne({ _id: result.insertedId });
+
+  res.status(201).json(serializeDoc(createdProduct));
+}));
+
+// Get products
+router.get('/', asyncHandler(async (req, res) => {
+  const { farm_id, status, skip = 0, limit = 100 } = req.query;
+
+  const { db } = await connectToDatabase();
+  const { products, product_batches: productBatches } = await getCollections(db);
+
   const query = {};
-  if (search) {
-    query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
-    ];
-  }
-  if (category) {
-    query.category = category;
-  }
+
   if (farm_id) {
-    query.farm_id = new ObjectId(farm_id);
+    query.farm_id = toObjectId(farm_id);
   }
 
-  // Build sort
-  const sortObj = {};
-  sortObj[sort] = order === 'desc' ? -1 : 1;
+  if (status) {
+    query.status = status;
+  }
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
-  const productsList = await products.find(query)
-    .sort(sortObj)
-    .skip(skip)
+  const productsList = await products
+    .find(query)
+    .skip(parseInt(skip))
     .limit(parseInt(limit))
     .toArray();
 
-  const total = await products.countDocuments(query);
+  // Populate batch names
+  const productsWithBatchNames = await Promise.all(
+    productsList.map(async (product) => {
+      try {
+        // Check if product_batch exists
+        if (product.product_batch) {
+          let batchId = product.product_batch;
+          
+          // Convert to string if it's an ObjectId
+          if (typeof batchId === 'object' && batchId._id) {
+            batchId = batchId._id.toString();
+          } else if (typeof batchId === 'object') {
+            batchId = batchId.toString();
+          }
+          
+          // Try to find the batch by ID
+          const batch = await productBatches.findOne({ _id: toObjectId(batchId) });
+          
+          return {
+            ...serializeDoc(product),
+            product_batch_name: batch ? batch.name : `Batch ${batchId.slice(-6)}`,
+          };
+        } else {
+          // If no batch ID, use default
+          return {
+            ...serializeDoc(product),
+            product_batch_name: 'No Batch',
+          };
+        }
+      } catch (error) {
+        // If batch ID is invalid, return a fallback name
+        const batchId = product.product_batch ? product.product_batch.toString() : '';
+        return {
+          ...serializeDoc(product),
+          product_batch_name: batchId ? `Batch ${batchId.slice(-6)}` : 'No Batch',
+        };
+      }
+    })
+  );
 
-  return res.status(200).json({
-    products: productsList.map(serializeDoc),
-    pagination: {
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit)),
-      totalProducts: total,
-      productsPerPage: parseInt(limit)
-    }
-  });
-}
+  res.json(productsWithBatchNames);
+}));
 
-// Create product handler
-async function handleCreateProduct(req, res, products) {
-  const {
-    name,
-    description,
-    price,
-    category,
-    farm_id,
-    stock_quantity = 0,
-    unit = 'kg',
-    images = [],
-    is_organic = false
-  } = req.body;
+// Get product by ID
+router.get('/:productId', asyncHandler(async (req, res) => {
+  const { productId } = req.params;
 
-  if (!name || !price || !farm_id) {
-    return res.status(400).json({ 
-      error: 'Name, price, and farm_id are required' 
-    });
-  }
+  const { db } = await connectToDatabase();
+  const { products, product_batches: productBatches } = await getCollections(db);
 
-  const newProduct = {
-    name,
-    description,
-    price: parseFloat(price),
-    category,
-    farm_id: new ObjectId(farm_id),
-    stock_quantity: parseInt(stock_quantity),
-    unit,
-    images,
-    is_organic,
-    created_at: new Date(),
-    updated_at: new Date()
-  };
-
-  const result = await products.insertOne(newProduct);
-
-  return res.status(201).json({
-    message: 'Product created successfully',
-    productId: result.insertedId,
-    product: serializeDoc({ _id: result.insertedId, ...newProduct })
-  });
-}
-
-// Get single product handler
-async function handleGetProduct(req, res, products, id) {
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid product ID' });
-  }
-
-  const product = await products.findOne({ _id: new ObjectId(id) });
+  const product = await products.findOne({ _id: toObjectId(productId) });
   
   if (!product) {
     return res.status(404).json({ error: 'Product not found' });
   }
 
-  return res.status(200).json({
-    product: serializeDoc(product)
-  });
-}
-
-// Update product handler
-async function handleUpdateProduct(req, res, products, id) {
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid product ID' });
+  // Populate batch name
+  let productWithBatchName = serializeDoc(product);
+  try {
+    const batch = await productBatches.findOne({ _id: toObjectId(product.product_batch) });
+    productWithBatchName.product_batch_name = batch ? batch.name : product.product_batch;
+  } catch (error) {
+    productWithBatchName.product_batch_name = product.product_batch;
   }
 
-  const updateData = { ...req.body };
-  delete updateData._id; // Remove _id if present
-  updateData.updated_at = new Date();
+  res.json(productWithBatchName);
+}));
 
-  // Convert farm_id to ObjectId if present
-  if (updateData.farm_id) {
-    updateData.farm_id = new ObjectId(updateData.farm_id);
+// Update product
+router.put('/:productId', authenticate, asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  const updates = req.body;
+
+  const { db } = await connectToDatabase();
+  const { products } = await getCollections(db);
+
+  const product = await products.findOne({ _id: toObjectId(productId) });
+  if (!product) {
+    return res.status(404).json({ error: 'Product not found' });
   }
 
-  const result = await products.updateOne(
-    { _id: new ObjectId(id) },
-    { $set: updateData }
+  await verifyFarmAccess(product.farm_id.toString(), req.user.userId, db);
+
+  delete updates._id;
+  delete updates.farm_id;
+  delete updates.created_at;
+  updates.updated_at = new Date();
+
+  // Recalculate if quantity or price changed
+  if (updates.quantity || updates.unit_price) {
+    const newQuantity = updates.quantity || product.quantity;
+    const newUnitPrice = updates.unit_price || product.unit_price;
+    updates.total_value = newQuantity * newUnitPrice;
+  }
+
+  await products.updateOne(
+    { _id: toObjectId(productId) },
+    { $set: updates }
   );
 
-  if (result.matchedCount === 0) {
+  const updatedProduct = await products.findOne({ _id: toObjectId(productId) });
+  res.json(serializeDoc(updatedProduct));
+}));
+
+// Delete product
+router.delete('/:productId', authenticate, asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+
+  const { db } = await connectToDatabase();
+  const { products } = await getCollections(db);
+
+  const product = await products.findOne({ _id: toObjectId(productId) });
+  if (!product) {
     return res.status(404).json({ error: 'Product not found' });
   }
 
-  return res.status(200).json({
-    message: 'Product updated successfully',
-    modifiedCount: result.modifiedCount
-  });
-}
+  await verifyFarmAccess(product.farm_id.toString(), req.user.userId, db);
 
-// Delete product handler
-async function handleDeleteProduct(req, res, products, id) {
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid product ID' });
-  }
+  await products.deleteOne({ _id: toObjectId(productId) });
+  res.json({ message: 'Product deleted successfully' });
+}));
 
-  const result = await products.deleteOne({ _id: new ObjectId(id) });
-
-  if (result.deletedCount === 0) {
-    return res.status(404).json({ error: 'Product not found' });
-  }
-
-  return res.status(200).json({
-    message: 'Product deleted successfully'
-  });
-}
+module.exports = router;

@@ -4,23 +4,20 @@ const app = require('../src/index');
 require('./setup');
 
 describe('Farms API', () => {
-  let token;
-  let userId;
-
-  beforeEach(async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        email: 'farmer@example.com',
-        password: 'password123',
-        role: 'farm_manager'
-      });
-    token = res.body.token;
-    userId = res.body.userId;
-  });
-
   describe('POST /api/farms', () => {
     it('should create a new farm', async () => {
+      // Register user and get token
+      const authRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email: 'farmer@example.com',
+          password: 'password123',
+          role: 'farm_manager'
+        });
+      
+      expect(authRes.status).toBe(201);
+      const token = authRes.body.token;
+
       const res = await request(app)
         .post('/api/farms')
         .set('Authorization', `Bearer ${token}`)
@@ -49,7 +46,20 @@ describe('Farms API', () => {
   });
 
   describe('GET /api/farms', () => {
-    beforeEach(async () => {
+    it('should get all public farms', async () => {
+      // Register user and get token
+      const authRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email: 'farmer2@example.com',
+          password: 'password123',
+          role: 'farm_manager'
+        });
+      
+      expect(authRes.status).toBe(201);
+      const token = authRes.body.token;
+
+      // Create a farm first
       await request(app)
         .post('/api/farms')
         .set('Authorization', `Bearer ${token}`)
@@ -58,9 +68,7 @@ describe('Farms API', () => {
           type: 'vegetable',
           location: 'Chittagong'
         });
-    });
 
-    it('should get all public farms', async () => {
       const res = await request(app)
         .get('/api/farms');
 
@@ -71,20 +79,32 @@ describe('Farms API', () => {
   });
 
   describe('GET /api/farms/:farmId', () => {
-    let farmId;
-
-    beforeEach(async () => {
-      const res = await request(app)
+    it('should get farm by ID', async () => {
+      // Register user and get token
+      const authRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email: 'farmer3@example.com',
+          password: 'password123',
+          role: 'farm_manager'
+        });
+      
+      expect(authRes.status).toBe(201);
+      const token = authRes.body.token;
+      
+      // Create a farm first
+      const createRes = await request(app)
         .post('/api/farms')
         .set('Authorization', `Bearer ${token}`)
         .send({
           name: 'Test Farm',
           type: 'dairy'
         });
-      farmId = res.body._id;
-    });
+      
+      expect(createRes.status).toBe(201);
+      const farmId = createRes.body._id;
 
-    it('should get farm by ID', async () => {
+      // Now get the farm by ID
       const res = await request(app)
         .get(`/api/farms/${farmId}`);
 
@@ -95,20 +115,32 @@ describe('Farms API', () => {
   });
 
   describe('PUT /api/farms/:farmId', () => {
-    let farmId;
-
-    beforeEach(async () => {
-      const res = await request(app)
+    it('should update farm', async () => {
+      // Register user and get token
+      const authRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email: 'farmer4@example.com',
+          password: 'password123',
+          role: 'farm_manager'
+        });
+      
+      expect(authRes.status).toBe(201);
+      const token = authRes.body.token;
+      
+      // Create a farm first
+      const createRes = await request(app)
         .post('/api/farms')
         .set('Authorization', `Bearer ${token}`)
         .send({
           name: 'Original Farm',
           type: 'dairy'
         });
-      farmId = res.body._id;
-    });
+      
+      expect(createRes.status).toBe(201);
+      const farmId = createRes.body._id;
 
-    it('should update farm', async () => {
+      // Update the farm
       const res = await request(app)
         .put(`/api/farms/${farmId}`)
         .set('Authorization', `Bearer ${token}`)

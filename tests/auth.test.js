@@ -93,24 +93,31 @@ describe('Authentication API', () => {
   });
 
   describe('GET /api/auth/me', () => {
-    let token;
-
-    beforeEach(async () => {
-      const res = await request(app)
+    it('should get current user with valid token', async () => {
+      // Create user and get token within the test
+      const registerRes = await request(app)
         .post('/api/auth/register')
         .send({
           email: 'test@example.com',
           password: 'password123',
           role: 'farmer'
         });
-      token = res.body.token;
-    });
-
-    it('should get current user with valid token', async () => {
+      
+      expect(registerRes.status).toBe(201);
+      expect(registerRes.body.token).toBeDefined();
+      
+      const token = registerRes.body.token;
+      
       const res = await request(app)
         .get('/api/auth/me')
         .set('Authorization', `Bearer ${token}`);
 
+      if (res.status !== 200) {
+        console.log('❌ /me failed with status:', res.status);
+        console.log('❌ Response body:', res.body);
+        console.log('❌ Token used:', token);
+      }
+      
       expect(res.status).toBe(200);
       expect(res.body.email).toBe('test@example.com');
       expect(res.body.role).toBe('farmer');

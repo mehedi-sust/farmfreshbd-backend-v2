@@ -7,9 +7,12 @@
     "node": ">=18.x"
   },
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "nodemon src/index.js",
+    "dev:local": "nodemon src/index.js",
+    "dev:vercel": "vercel dev",
     "build": "echo 'No build step required for serverless functions'",
-    "start": "vercel dev",
+    "start": "node src/index.js",
+    "start:vercel": "vercel dev",
     "deploy": "vercel --prod",
     "test": "jest --coverage --verbose",
     "test:watch": "jest --watch",
