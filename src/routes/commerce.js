@@ -4,10 +4,10 @@
  */
 
 const express = require('express');
-const { authenticate } = require('../src/config/auth');
-const { asyncHandler } = require('../src/utils/helpers');
-const DatabaseService = require('../src/services/database.service');
-const { transaction } = require('../src/config/database');
+const { authenticate } = require('../config/auth');
+const { asyncHandler } = require('../utils/helpers');
+const DatabaseService = require('../services/database.service');
+const { transaction } = require('../config/database');
 
 const router = express.Router();
 

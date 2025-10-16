@@ -1,7 +1,7 @@
 const express = require('express');
-const { asyncHandler } = require('../src/utils/helpers');
-const DatabaseService = require('../src/services/database.service');
-const { authenticate, requireAdmin } = require('../src/config/auth.js');
+const { asyncHandler } = require('../utils/helpers');
+const DatabaseService = require('../services/database.service');
+const { authenticate, requireAdmin } = require('../config/auth.js');
 
 const router = express.Router();
 

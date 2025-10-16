@@ -13,12 +13,12 @@ console.log('🚀 Validating Serverless Functions Configuration...\n');
 // Check if all required files exist
 const requiredFiles = [
   'api/index.js',
-  'api/auth.js', 
-  'api/products.js',
-  'api/store_products.js',
-  'api/farms.js',
-  'api/stats.js',
-  'api/admin.js',
+  'src/routes/auth.js', 
+  'src/routes/products.js',
+  'src/routes/store_products.js',
+  'src/routes/farms.js',
+  'src/routes/stats.js',
+  'src/routes/admin.js',
   'vercel.json',
   'package.json'
 ];
@@ -42,7 +42,7 @@ if (!allFilesExist) {
 
 // Test function imports
 console.log('\n📦 Testing function imports...');
-const apiFiles = ['index.js', 'auth.js', 'products.js', 'store_products.js', 'farms.js', 'stats.js', 'admin.js'];
+const apiFiles = ['index.js'];
 let allImportsWork = true;
 
 apiFiles.forEach(file => {
@@ -51,6 +51,18 @@ apiFiles.forEach(file => {
     console.log(`✅ api/${file} imports successfully`);
   } catch (error) {
     console.log(`❌ api/${file} import failed: ${error.message}`);
+    allImportsWork = false;
+  }
+});
+
+const routeFiles = ['auth.js','products.js','store_products.js','farms.js','stats.js','admin.js'];
+console.log('\n📦 Testing route module imports...');
+routeFiles.forEach(file => {
+  try {
+    require(`./src/routes/${file}`);
+    console.log(`✅ src/routes/${file} imports successfully`);
+  } catch (error) {
+    console.log(`❌ src/routes/${file} import failed: ${error.message}`);
     allImportsWork = false;
   }
 });

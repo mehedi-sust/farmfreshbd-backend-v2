@@ -17,9 +17,9 @@
  */
 
 const express = require('express');
-const DatabaseService = require('../src/services/database.service');
-const { authenticate } = require('../src/config/auth');
-const { asyncHandler, validateUUID } = require('../src/utils/helpers');
+const DatabaseService = require('../services/database.service');
+const { authenticate } = require('../config/auth');
+const { asyncHandler, validateUUID } = require('../utils/helpers');
 
 const router = express.Router();
 

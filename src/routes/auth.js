@@ -6,10 +6,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { connectToDatabase } = require('../src/config/database');
-const { generateToken, hashPassword, comparePassword, authenticate, optionalAuth, requireAdmin, authenticateAdmin } = require('../src/config/auth');
-const { asyncHandler } = require('../src/utils/helpers');
-const DatabaseService = require('../src/services/database.service');
+const { connectToDatabase } = require('../config/database');
+const { generateToken, hashPassword, comparePassword, authenticate, optionalAuth, requireAdmin, authenticateAdmin } = require('../config/auth');
+const { asyncHandler } = require('../utils/helpers');
+const DatabaseService = require('../services/database.service');
 
 const router = express.Router();
 
@@ -224,7 +224,7 @@ router.post('/run-expense-types-migration-dev', asyncHandler(async (req, res) =>
     return res.status(403).json({ error: 'Migration endpoint not available in production' });
   }
 
-  const { query } = require('../src/config/database');
+  const { query } = require('../config/database');
 
   try {
     console.log('🔧 Running expense types migration via API...');
@@ -354,7 +354,7 @@ router.get('/debug-category-deps-dev', asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Debug endpoint not available in production' });
   }
 
-  const { query } = require('../src/config/database');
+  const { query } = require('../config/database');
 
   try {
     // Check constraints

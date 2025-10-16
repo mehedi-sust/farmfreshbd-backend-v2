@@ -1,7 +1,7 @@
 const express = require('express');
-const { authenticate } = require('../src/config/auth');
-const { asyncHandler, serializeDoc, toInteger, isValidUUID } = require('../src/utils/helpers');
-const DatabaseService = require('../src/services/database.service');
+const { authenticate } = require('../config/auth');
+const { asyncHandler, serializeDoc, toInteger, isValidUUID } = require('../utils/helpers');
+const DatabaseService = require('../services/database.service');
 
 const router = express.Router();
 

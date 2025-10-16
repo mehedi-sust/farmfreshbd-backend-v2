@@ -1,6 +1,6 @@
 const express = require('express');
-const { asyncHandler, serializeDocs } = require('../src/utils/helpers');
-const DatabaseService = require('../src/services/database.service');
+const { asyncHandler, serializeDocs } = require('../utils/helpers');
+const DatabaseService = require('../services/database.service');
 
 const router = express.Router();
 

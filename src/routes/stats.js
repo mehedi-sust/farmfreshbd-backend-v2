@@ -1,8 +1,8 @@
 const express = require('express');
-const DatabaseService = require('../src/services/database.service');
-const { query } = require('../src/config/database');
-const { asyncHandler } = require('../src/utils/helpers');
-const { authenticate } = require('../src/config/auth');
+const DatabaseService = require('../services/database.service');
+const { query } = require('../config/database');
+const { asyncHandler } = require('../utils/helpers');
+const { authenticate } = require('../config/auth');
 
 const router = express.Router();
 

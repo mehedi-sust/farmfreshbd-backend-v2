@@ -15,9 +15,9 @@
  */
 
 const express = require('express');
-const { authenticate, optionalAuth, requireAdmin } = require('../src/config/auth');
-const { asyncHandler, serializeDoc, serializeDocs } = require('../src/utils/helpers');
-const DatabaseService = require('../src/services/database.service');
+const { authenticate, optionalAuth, requireAdmin } = require('../config/auth');
+const { asyncHandler, serializeDoc, serializeDocs } = require('../utils/helpers');
+const DatabaseService = require('../services/database.service');
 
 const router = express.Router();
 

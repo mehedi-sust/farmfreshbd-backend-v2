@@ -24,20 +24,19 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs, {
 // Serve static documentation files
 app.use('/api-docs', express.static(path.join(__dirname, '../public')));
 
-// Import API routes (only the ones that exist)
-const indexRouter = require('../api/index');
-const coreRouter = require('../api/core');
+// Import API routes (local Express routers)
+const coreRouter = require('./routes/core');
 // Finance/management router (investments, expenses, expense types)
-const managementRouter = require('../api/management');
-const commerceRouter = require('../api/commerce');
-const authRouter = require('../api/auth');
-const adminRouter = require('../api/admin');
-const statsRouter = require('../api/stats');
-const farmsRouter = require('../api/farms');
-const productsRouter = require('../api/products');
-const storeProductsRouter = require('../api/store_products');
-const productCategoriesRouter = require('../api/product_categories');
-const reviewsRouter = require('../api/reviews');
+const managementRouter = require('./routes/management');
+const commerceRouter = require('./routes/commerce');
+const authRouter = require('./routes/auth');
+const adminRouter = require('./routes/admin');
+const statsRouter = require('./routes/stats');
+const farmsRouter = require('./routes/farms');
+const productsRouter = require('./routes/products');
+const storeProductsRouter = require('./routes/store_products');
+const productCategoriesRouter = require('./routes/product_categories');
+const reviewsRouter = require('./routes/reviews');
 
 // Mount routes
 // app.use('/', indexRouter); // Commented out - this is a serverless function, not an Express router
@@ -62,7 +61,6 @@ app.use('/api', coreRouter);
 // Mount routes WITHOUT /api prefix for frontend compatibility
 // Ensure modern store_products routes take precedence over legacy core
 app.use('/auth', authRouter);
-// Temporarily commented out until MongoDB migration is complete
 // app.use('/admin', adminRouter);
 app.use('/users', authRouter); // For frontend compatibility (/users/login, /users/register)
 app.use('/farms', farmsRouter); // For frontend compatibility
