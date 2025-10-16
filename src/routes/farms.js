@@ -218,6 +218,117 @@ router.get('/user/:user_id', authenticate, asyncHandler(async (req, res) => {
     }
 }));
 
+// GET /farms/:farm_id/export - Export full farm data
+router.get('/:farm_id/export', authenticate, asyncHandler(async (req, res) => {
+    const { farm_id } = req.params;
+    try {
+        if (!isValidUUID(farm_id)) {
+            return res.status(400).json({ error: 'Invalid farm ID format' });
+        }
+
+        const hasAccess = await DatabaseService.verifyFarmOwnership(farm_id, req.user.userId);
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied to this farm' });
+        }
+
+        const payload = await DatabaseService.exportFarmData(farm_id, req.user.userId);
+
+        const filename = `farm-${farm_id}-export-${new Date().toISOString().slice(0,10)}.json`;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.status(200).json(payload);
+    } catch (error) {
+        console.error('❌ Error exporting farm data:', error);
+        res.status(500).json({ error: 'Failed to export farm data', details: error.message });
+    }
+}));
+
+// POST /farms/:farm_id/import - Import farm data from backup
+router.post('/:farm_id/import', authenticate, asyncHandler(async (req, res) => {
+    const { farm_id } = req.params;
+    const { data, replace_existing = false } = req.body;
+    
+    try {
+        if (!isValidUUID(farm_id)) {
+            return res.status(400).json({ error: 'Invalid farm ID format' });
+        }
+
+        const hasAccess = await DatabaseService.verifyFarmOwnership(farm_id, req.user.userId);
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied to this farm' });
+        }
+
+        if (!data) {
+            return res.status(400).json({ error: 'Import data is required' });
+        }
+
+        // Validate data structure
+        if (!data.metadata || !data.farm) {
+            return res.status(400).json({ error: 'Invalid import data format. Missing metadata or farm data.' });
+        }
+
+        const result = await DatabaseService.importFarmData(farm_id, data, replace_existing, req.user.userId);
+        
+        res.json({
+            success: true,
+            message: 'Farm data imported successfully',
+            imported_counts: result.imported_counts,
+            warnings: result.warnings || []
+        });
+    } catch (error) {
+        console.error('❌ Error importing farm data:', error);
+        res.status(500).json({ error: 'Failed to import farm data', details: error.message });
+    }
+}));
+
+// DELETE /farms/:farm_id/remove-all-data - Remove all farm data (requires confirmation)
+router.delete('/:farm_id/remove-all-data', authenticate, asyncHandler(async (req, res) => {
+    const { farm_id } = req.params;
+    const { confirmation } = req.body || {};
+
+    try {
+        if (!isValidUUID(farm_id)) {
+            return res.status(400).json({ error: 'Invalid farm ID format' });
+        }
+
+        const hasAccess = await DatabaseService.verifyFarmOwnership(farm_id, req.user.userId);
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied to this farm' });
+        }
+
+        if (confirmation !== 'DELETE_ALL_DATA') {
+            return res.status(400).json({ error: 'Confirmation required: set body { "confirmation": "DELETE_ALL_DATA" }' });
+        }
+
+        const result = await DatabaseService.removeAllFarmData(farm_id);
+        res.json(result);
+    } catch (error) {
+        console.error('❌ Error removing farm data:', error);
+        res.status(500).json({ error: 'Failed to remove farm data', details: error.message });
+    }
+}));
+
+// GET /farms/:farm_id/stats - Get farm statistics
+router.get('/:farm_id/stats', authenticate, asyncHandler(async (req, res) => {
+    const { farm_id } = req.params;
+    try {
+        if (!isValidUUID(farm_id)) {
+            return res.status(400).json({ error: 'Invalid farm ID format' });
+        }
+
+        const hasAccess = await DatabaseService.verifyFarmOwnership(farm_id, req.user.userId);
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied to this farm' });
+        }
+
+        const stats = await DatabaseService.getFarmStats(farm_id);
+        res.json({ success: true, stats });
+    } catch (error) {
+        console.error('❌ Error fetching farm stats:', error);
+        res.status(500).json({ error: 'Failed to fetch farm stats', details: error.message });
+    }
+}));
+
 module.exports = router;
 /**
  * Farm Orders - for manager dashboard

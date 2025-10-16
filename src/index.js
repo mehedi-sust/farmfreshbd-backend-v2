@@ -37,6 +37,7 @@ const productsRouter = require('./routes/products');
 const storeProductsRouter = require('./routes/store_products');
 const productCategoriesRouter = require('./routes/product_categories');
 const reviewsRouter = require('./routes/reviews');
+const reportsRouter = require('./routes/reports');
 
 // Mount routes
 // app.use('/', indexRouter); // Commented out - this is a serverless function, not an Express router
@@ -51,6 +52,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/store_products', storeProductsRouter);
 app.use('/api/product_categories', productCategoriesRouter);
 app.use('/api/reviews', reviewsRouter);
+app.use('/api/reports', reportsRouter);
 // Mount management routes to expose finance endpoints (expenses, expense_types, investments)
 app.use('/api', managementRouter);
 // Mount consolidated commerce router to enable cart, orders, sales under /api
@@ -67,6 +69,7 @@ app.use('/farms', farmsRouter); // For frontend compatibility
 app.use('/stats', statsRouter); // For frontend compatibility (e.g., /stats/farm/:farmId/profit_over_time)
 app.use('/store_products', storeProductsRouter); // For frontend compatibility
 app.use('/product_categories', productCategoriesRouter);
+app.use('/reports', reportsRouter);
 // Mount consolidated commerce router for frontend compatibility without /api prefix
 app.use('/', commerceRouter);
 // Mount management routes without /api prefix for legacy frontend compatibility

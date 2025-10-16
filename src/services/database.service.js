@@ -1981,6 +1981,176 @@ class DatabaseService {
     }
   }
 
+  // Export complete farm data in a single JSON payload
+  static async exportFarmData(farmId, exportedByUserId) {
+    try {
+      // Fetch core entities
+      const farmResult = await query('SELECT * FROM farms WHERE id = $1', [farmId]);
+      const farm = farmResult.rows[0];
+
+      if (!farm) {
+        throw new Error('Farm not found');
+      }
+
+      const products = (await query('SELECT * FROM products WHERE farm_id = $1 ORDER BY created_at DESC', [farmId])).rows;
+      const batches = (await query(
+        `SELECT pb.* FROM product_batches pb
+         WHERE pb.product_id IN (SELECT id FROM products WHERE farm_id = $1)
+         ORDER BY pb.created_at DESC`,
+        [farmId]
+      )).rows;
+      const batchNames = (await query('SELECT * FROM batch_names WHERE farm_id = $1 ORDER BY created_at DESC', [farmId])).rows;
+      const expenses = await this.getExpensesByFarmWithFilters(farmId, {});
+      const investments = (await query('SELECT * FROM investments WHERE farm_id = $1 ORDER BY created_at DESC', [farmId])).rows;
+      const sales = await this.getSalesByFarmWithFilters(farmId, {});
+      const storeProducts = (await query(
+        `SELECT sp.* FROM store_products sp
+         JOIN products p ON sp.product_id = p.id
+         WHERE p.farm_id = $1 ORDER BY sp.created_at DESC`,
+        [farmId]
+      )).rows;
+      const orders = (await query(
+        `SELECT DISTINCT o.* FROM orders o
+         JOIN order_items oi ON o.id = oi.order_id
+         JOIN store_products sp ON oi.store_product_id = sp.id
+         JOIN products p ON sp.product_id = p.id
+         WHERE p.farm_id = $1 ORDER BY o.created_at DESC`,
+        [farmId]
+      )).rows;
+      const orderItems = (await query(
+        `SELECT oi.* FROM order_items oi
+         JOIN store_products sp ON oi.store_product_id = sp.id
+         JOIN products p ON sp.product_id = p.id
+         WHERE p.farm_id = $1
+         ORDER BY oi.created_at DESC`,
+        [farmId]
+      )).rows;
+      const cartItems = (await query(
+        `SELECT sc.* FROM shopping_cart sc
+         JOIN store_products sp ON sc.store_product_id = sp.id
+         JOIN products p ON sp.product_id = p.id
+         WHERE p.farm_id = $1 ORDER BY sc.created_at DESC`,
+        [farmId]
+      )).rows;
+
+      const stats = await this.getFarmStats(farmId);
+
+      const { serializeDoc, serializeDocs } = require('../utils/helpers');
+
+      return {
+        metadata: {
+          export_date: new Date().toISOString(),
+          farm_id: farmId,
+          exported_by: exportedByUserId,
+          format_version: '2.0.0'
+        },
+        farm: serializeDoc(farm),
+        stats: serializeDoc(stats),
+        products: serializeDocs(products),
+        productBatches: serializeDocs(batches),
+        batchNames: serializeDocs(batchNames),
+        expenses: serializeDocs(expenses),
+        investments: serializeDocs(investments),
+        sales: serializeDocs(sales),
+        storeProducts: serializeDocs(storeProducts),
+        orders: serializeDocs(orders),
+        orderItems: serializeDocs(orderItems),
+        cartItems: serializeDocs(cartItems)
+      };
+    } catch (error) {
+      console.error('Error exporting farm data:', error);
+      throw error;
+    }
+  }
+
+  // Remove all farm data safely with cascading deletes inside a transaction
+  static async removeAllFarmData(farmId) {
+    return transaction(async (client) => {
+      // Ensure farm exists
+      const farmRes = await client.query('SELECT id FROM farms WHERE id = $1', [farmId]);
+      if (farmRes.rowCount === 0) {
+        throw new Error('Farm not found');
+      }
+
+      const summary = {};
+
+      // Orders and order items (orders are related to farms through order_items -> store_products -> products)
+      const delOrderItems = await client.query(
+        `DELETE FROM order_items WHERE order_id IN (
+          SELECT DISTINCT o.id FROM orders o
+          JOIN order_items oi ON o.id = oi.order_id
+          JOIN store_products sp ON oi.store_product_id = sp.id
+          JOIN products p ON sp.product_id = p.id
+          WHERE p.farm_id = $1
+        )`,
+        [farmId]
+      );
+      summary.order_items_deleted = delOrderItems.rowCount || 0;
+
+      const delOrders = await client.query(
+        `DELETE FROM orders WHERE id IN (
+          SELECT DISTINCT o.id FROM orders o
+          JOIN order_items oi ON o.id = oi.order_id
+          JOIN store_products sp ON oi.store_product_id = sp.id
+          JOIN products p ON sp.product_id = p.id
+          WHERE p.farm_id = $1
+        )`,
+        [farmId]
+      );
+      summary.orders_deleted = delOrders.rowCount || 0;
+
+      // Cart items and store products (store_products are related to farms through products)
+      const delCartItems = await client.query(
+        `DELETE FROM shopping_cart WHERE store_product_id IN (
+          SELECT sp.id FROM store_products sp
+          JOIN products p ON sp.product_id = p.id
+          WHERE p.farm_id = $1
+        )`,
+        [farmId]
+      );
+      summary.cart_items_deleted = delCartItems.rowCount || 0;
+
+      const delStoreProducts = await client.query(
+        `DELETE FROM store_products WHERE product_id IN (
+          SELECT id FROM products WHERE farm_id = $1
+        )`,
+        [farmId]
+      );
+      summary.store_products_deleted = delStoreProducts.rowCount || 0;
+
+      // Sales
+      const delSales = await client.query('DELETE FROM sales WHERE farm_id = $1', [farmId]);
+      summary.sales_deleted = delSales.rowCount || 0;
+
+      // Expenses
+      const delExpenses = await client.query('DELETE FROM expenses WHERE farm_id = $1', [farmId]);
+      summary.expenses_deleted = delExpenses.rowCount || 0;
+
+      // Investments
+      const delInvestments = await client.query('DELETE FROM investments WHERE farm_id = $1', [farmId]);
+      summary.investments_deleted = delInvestments.rowCount || 0;
+
+      // Product batches and batch names
+      const delProductBatches = await client.query(
+        `DELETE FROM product_batches WHERE product_id IN (SELECT id FROM products WHERE farm_id = $1)`,
+        [farmId]
+      );
+      summary.product_batches_deleted = delProductBatches.rowCount || 0;
+
+      const delBatchNames = await client.query('DELETE FROM batch_names WHERE farm_id = $1', [farmId]);
+      summary.batch_names_deleted = delBatchNames.rowCount || 0;
+
+      // Products
+      const delProducts = await client.query('DELETE FROM products WHERE farm_id = $1', [farmId]);
+      summary.products_deleted = delProducts.rowCount || 0;
+
+      return {
+        message: 'All farm data removed successfully',
+        summary
+      };
+    });
+  }
+
   // Expense methods
   static async createExpense(expenseData) {
     const result = await query(`
@@ -2368,6 +2538,450 @@ class DatabaseService {
       [userId, storeProductId]
     );
     return result.rows[0];
+  }
+
+  // Import farm data from backup
+  static async importFarmData(farmId, importData, replaceExisting = false, importedByUserId) {
+    return transaction(async (client) => {
+      try {
+        console.log('🔄 Starting farm data import for farm:', farmId);
+        
+        // Validate farm exists
+        const farmCheck = await client.query('SELECT id FROM farms WHERE id = $1', [farmId]);
+        if (farmCheck.rowCount === 0) {
+          throw new Error('Farm not found');
+        }
+
+        const imported_counts = {
+          products: 0,
+          productBatches: 0,
+          batchNames: 0,
+          expenses: 0,
+          investments: 0,
+          sales: 0,
+          storeProducts: 0,
+          orders: 0,
+          orderItems: 0,
+          cartItems: 0
+        };
+        const warnings = [];
+
+        // If replace_existing is true, remove all existing data first
+        if (replaceExisting) {
+          console.log('🗑️ Removing existing farm data before import...');
+          await this.removeAllFarmData(farmId);
+        }
+
+        // Import batch names first (they're referenced by other entities)
+        if (importData.batchNames && Array.isArray(importData.batchNames)) {
+          console.log('📦 Importing batch names...');
+          for (const batchName of importData.batchNames) {
+            try {
+              // Check if batch name already exists
+              const existingBatch = await client.query(
+                'SELECT id FROM batch_names WHERE name = $1 AND farm_id = $2',
+                [batchName.name, farmId]
+              );
+              
+              if (existingBatch.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO batch_names (id, name, farm_id, description, is_active, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                  [
+                    batchName.id,
+                    batchName.name,
+                    farmId,
+                    batchName.description,
+                    batchName.is_active !== false,
+                    batchName.created_at || new Date(),
+                    batchName.updated_at || new Date()
+                  ]
+                );
+                imported_counts.batchNames++;
+              } else {
+                warnings.push(`Batch name '${batchName.name}' already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import batch name '${batchName.name}': ${error.message}`);
+            }
+          }
+        }
+
+        // Import products
+        if (importData.products && Array.isArray(importData.products)) {
+          console.log('🌱 Importing products...');
+          for (const product of importData.products) {
+            try {
+              // Check if product already exists
+              const existingProduct = await client.query(
+                'SELECT id FROM products WHERE id = $1',
+                [product.id]
+              );
+              
+              if (existingProduct.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO products (id, name, description, category_id, farm_id, unit, quantity, total_price, unit_price, batch_name, product_type, base_price, is_active, created_at, updated_at, status)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                  [
+                    product.id,
+                    product.name,
+                    product.description,
+                    product.category_id,
+                    farmId,
+                    product.unit,
+                    product.quantity,
+                    product.total_price,
+                    product.unit_price,
+                    product.batch_name,
+                    product.product_type,
+                    product.base_price,
+                    product.is_active !== false,
+                    product.created_at || new Date(),
+                    product.updated_at || new Date(),
+                    product.status || 'unsold'
+                  ]
+                );
+                imported_counts.products++;
+              } else {
+                warnings.push(`Product '${product.name}' already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import product '${product.name}': ${error.message}`);
+            }
+          }
+        }
+
+        // Import product batches
+        if (importData.productBatches && Array.isArray(importData.productBatches)) {
+          console.log('📦 Importing product batches...');
+          for (const batch of importData.productBatches) {
+            try {
+              const existingBatch = await client.query(
+                'SELECT id FROM product_batches WHERE id = $1',
+                [batch.id]
+              );
+              
+              if (existingBatch.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO product_batches (id, product_id, batch_number, quantity, unit_cost, total_cost, production_date, expiry_date, notes, is_active, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                  [
+                    batch.id,
+                    batch.product_id,
+                    batch.batch_number,
+                    batch.quantity,
+                    batch.unit_cost,
+                    batch.total_cost,
+                    batch.production_date,
+                    batch.expiry_date,
+                    batch.notes,
+                    batch.is_active !== false,
+                    batch.created_at || new Date(),
+                    batch.updated_at || new Date()
+                  ]
+                );
+                imported_counts.productBatches++;
+              } else {
+                warnings.push(`Product batch '${batch.batch_number}' already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import product batch '${batch.batch_number}': ${error.message}`);
+            }
+          }
+        }
+
+        // Import expenses
+        if (importData.expenses && Array.isArray(importData.expenses)) {
+          console.log('💰 Importing expenses...');
+          for (const expense of importData.expenses) {
+            try {
+              const existingExpense = await client.query(
+                'SELECT id FROM expenses WHERE id = $1',
+                [expense.id]
+              );
+              
+              if (existingExpense.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO expenses (id, farm_id, expense_type_id, amount, description, expense_date, receipt_number, vendor, payment_method, is_recurring, recurring_frequency, created_by, created_at, updated_at, batch_id)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+                  [
+                    expense.id,
+                    farmId,
+                    expense.expense_type_id,
+                    expense.amount,
+                    expense.description,
+                    expense.expense_date,
+                    expense.receipt_number,
+                    expense.vendor,
+                    expense.payment_method,
+                    expense.is_recurring || false,
+                    expense.recurring_frequency,
+                    expense.created_by || importedByUserId,
+                    expense.created_at || new Date(),
+                    expense.updated_at || new Date(),
+                    expense.batch_id
+                  ]
+                );
+                imported_counts.expenses++;
+              } else {
+                warnings.push(`Expense '${expense.description}' already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import expense '${expense.description}': ${error.message}`);
+            }
+          }
+        }
+
+        // Import investments
+        if (importData.investments && Array.isArray(importData.investments)) {
+          console.log('🏗️ Importing investments...');
+          for (const investment of importData.investments) {
+            try {
+              const existingInvestment = await client.query(
+                'SELECT id FROM investments WHERE id = $1',
+                [investment.id]
+              );
+              
+              if (existingInvestment.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO investments (id, farm_id, title, description, amount, investment_date, investment_type, expected_roi_percentage, actual_roi_percentage, status, created_by, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                  [
+                    investment.id,
+                    farmId,
+                    investment.title,
+                    investment.description,
+                    investment.amount,
+                    investment.investment_date,
+                    investment.investment_type,
+                    investment.expected_roi_percentage,
+                    investment.actual_roi_percentage,
+                    investment.status || 'active',
+                    investment.created_by || importedByUserId,
+                    investment.created_at || new Date(),
+                    investment.updated_at || new Date()
+                  ]
+                );
+                imported_counts.investments++;
+              } else {
+                warnings.push(`Investment '${investment.title}' already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import investment '${investment.title}': ${error.message}`);
+            }
+          }
+        }
+
+        // Import sales
+        if (importData.sales && Array.isArray(importData.sales)) {
+          console.log('💵 Importing sales...');
+          for (const sale of importData.sales) {
+            try {
+              const existingSale = await client.query(
+                'SELECT id FROM sales WHERE id = $1',
+                [sale.id]
+              );
+              
+              if (existingSale.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO sales (id, farm_id, product_id, quantity_sold, unit_price, total_amount, sale_date, customer_name, customer_contact, payment_method, notes, created_by, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                  [
+                    sale.id,
+                    farmId,
+                    sale.product_id,
+                    sale.quantity_sold,
+                    sale.unit_price,
+                    sale.total_amount,
+                    sale.sale_date,
+                    sale.customer_name,
+                    sale.customer_contact,
+                    sale.payment_method,
+                    sale.notes,
+                    sale.created_by || importedByUserId,
+                    sale.created_at || new Date(),
+                    sale.updated_at || new Date()
+                  ]
+                );
+                imported_counts.sales++;
+              } else {
+                warnings.push(`Sale record already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import sale: ${error.message}`);
+            }
+          }
+        }
+
+        // Import store products
+        if (importData.storeProducts && Array.isArray(importData.storeProducts)) {
+          console.log('🏪 Importing store products...');
+          for (const storeProduct of importData.storeProducts) {
+            try {
+              const existingStoreProduct = await client.query(
+                'SELECT id FROM store_products WHERE id = $1',
+                [storeProduct.id]
+              );
+              
+              if (existingStoreProduct.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO store_products (id, product_id, batch_id, store_price, stock_quantity, min_stock_level, max_stock_level, is_featured, is_available, discount_percentage, created_at, updated_at, discount_description, product_image_url, description)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+                  [
+                    storeProduct.id,
+                    storeProduct.product_id,
+                    storeProduct.batch_id,
+                    storeProduct.store_price,
+                    storeProduct.stock_quantity,
+                    storeProduct.min_stock_level,
+                    storeProduct.max_stock_level,
+                    storeProduct.is_featured || false,
+                    storeProduct.is_available !== false,
+                    storeProduct.discount_percentage || 0,
+                    storeProduct.created_at || new Date(),
+                    storeProduct.updated_at || new Date(),
+                    storeProduct.discount_description,
+                    storeProduct.product_image_url,
+                    storeProduct.description
+                  ]
+                );
+                imported_counts.storeProducts++;
+              } else {
+                warnings.push(`Store product already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import store product: ${error.message}`);
+            }
+          }
+        }
+
+        // Import orders
+        if (importData.orders && Array.isArray(importData.orders)) {
+          console.log('📋 Importing orders...');
+          for (const order of importData.orders) {
+            try {
+              const existingOrder = await client.query(
+                'SELECT id FROM orders WHERE id = $1',
+                [order.id]
+              );
+              
+              if (existingOrder.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO orders (id, customer_id, order_number, status, total_amount, discount_amount, tax_amount, shipping_amount, final_amount, payment_status, payment_method, shipping_address, billing_address, notes, order_date, confirmed_at, shipped_at, delivered_at, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+                  [
+                    order.id,
+                    order.customer_id,
+                    order.order_number,
+                    order.status,
+                    order.total_amount,
+                    order.discount_amount,
+                    order.tax_amount,
+                    order.shipping_amount,
+                    order.final_amount,
+                    order.payment_status,
+                    order.payment_method,
+                    order.shipping_address,
+                    order.billing_address,
+                    order.notes,
+                    order.order_date,
+                    order.confirmed_at,
+                    order.shipped_at,
+                    order.delivered_at,
+                    order.created_at || new Date(),
+                    order.updated_at || new Date()
+                  ]
+                );
+                imported_counts.orders++;
+              } else {
+                warnings.push(`Order '${order.order_number}' already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import order '${order.order_number}': ${error.message}`);
+            }
+          }
+        }
+
+        // Import order items
+        if (importData.orderItems && Array.isArray(importData.orderItems)) {
+          console.log('📦 Importing order items...');
+          for (const orderItem of importData.orderItems) {
+            try {
+              const existingOrderItem = await client.query(
+                'SELECT id FROM order_items WHERE id = $1',
+                [orderItem.id]
+              );
+              
+              if (existingOrderItem.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO order_items (id, order_id, store_product_id, quantity, unit_price, total_price, created_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                  [
+                    orderItem.id,
+                    orderItem.order_id,
+                    orderItem.store_product_id,
+                    orderItem.quantity,
+                    orderItem.unit_price,
+                    orderItem.total_price,
+                    orderItem.created_at || new Date()
+                  ]
+                );
+                imported_counts.orderItems++;
+              } else {
+                warnings.push(`Order item already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import order item: ${error.message}`);
+            }
+          }
+        }
+
+        // Import cart items (optional, usually not needed for backups)
+        if (importData.cartItems && Array.isArray(importData.cartItems)) {
+          console.log('🛒 Importing cart items...');
+          for (const cartItem of importData.cartItems) {
+            try {
+              const existingCartItem = await client.query(
+                'SELECT id FROM shopping_cart WHERE id = $1',
+                [cartItem.id]
+              );
+              
+              if (existingCartItem.rowCount === 0) {
+                await client.query(
+                  `INSERT INTO shopping_cart (id, user_id, store_product_id, quantity, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6)`,
+                  [
+                    cartItem.id,
+                    cartItem.user_id,
+                    cartItem.store_product_id,
+                    cartItem.quantity,
+                    cartItem.created_at || new Date(),
+                    cartItem.updated_at || new Date()
+                  ]
+                );
+                imported_counts.cartItems++;
+              } else {
+                warnings.push(`Cart item already exists, skipped`);
+              }
+            } catch (error) {
+              warnings.push(`Failed to import cart item: ${error.message}`);
+            }
+          }
+        }
+
+        console.log('✅ Farm data import completed successfully');
+        console.log('📊 Import summary:', imported_counts);
+        
+        return {
+          success: true,
+          imported_counts,
+          warnings
+        };
+      } catch (error) {
+        console.error('❌ Error during farm data import:', error);
+        throw error;
+      }
+    });
   }
 }
 
