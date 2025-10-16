@@ -483,4 +483,17 @@ router.get('/farm/:farm_id/batch-names', authenticate, asyncHandler(async (req, 
     }
 }));
 
+// Alias for frontend: GET /products/batches/farm/:farm_id -> returns batch names
+router.get('/batches/farm/:farm_id', authenticate, asyncHandler(async (req, res) => {
+    const { farm_id } = req.params;
+
+    try {
+        const batchNames = await DatabaseService.getBatchNamesByFarm(farm_id);
+        res.json(batchNames);
+    } catch (error) {
+        console.error('Error fetching product batch names (alias route):', error);
+        res.status(500).json({ error: 'Failed to fetch product batch names' });
+    }
+}));
+
 module.exports = router;

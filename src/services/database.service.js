@@ -2444,10 +2444,26 @@ class DatabaseService {
   }
 
   static async getBatchExpensesTotal(farmId, batchNumber) {
-    // Note: Current expenses table schema doesn't have product_batch column
-    // For now, return 0 until expenses are properly linked to batches
-    // TODO: Add proper batch-expense relationship when needed
-    return 0;
+    // Interpret batchNumber as a batch name and sum expenses linked via batch_names
+    // Expenses schema uses batch_id referencing batch_names.id
+    if (!farmId || !batchNumber) {
+      return 0;
+    }
+
+    // "No Batch" or empty batch names should have no linked expenses
+    const bn = String(batchNumber).trim();
+    if (bn.length === 0 || bn.toLowerCase() === 'no batch') {
+      return 0;
+    }
+
+    const result = await query(
+      `SELECT COALESCE(SUM(e.amount), 0) AS total_expenses
+       FROM expenses e
+       INNER JOIN batch_names bn ON e.batch_id = bn.id
+       WHERE e.farm_id = $1 AND bn.farm_id = $1 AND bn.name = $2`,
+      [farmId, bn]
+    );
+    return parseFloat(result.rows[0]?.total_expenses || 0);
   }
 
   // Cart methods
