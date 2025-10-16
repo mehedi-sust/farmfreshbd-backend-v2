@@ -3,94 +3,6 @@
   "name": "farmfreshbd-api",
   "routes": [
     {
-      "src": "/api/auth/(.*)",
-      "dest": "/api/core.js"
-    },
-    {
-      "src": "/api/products/(.*)",
-      "dest": "/api/core.js"
-    },
-    {
-      "src": "/api/store_products/(.*)",
-      "dest": "/api/core.js"
-    },
-    {
-      "src": "/api/farms/(.*)",
-      "dest": "/api/core.js"
-    },
-    {
-      "src": "/api/admin/(.*)",
-      "dest": "/api/management.js"
-    },
-    {
-      "src": "/api/finance/(.*)",
-      "dest": "/api/management.js"
-    },
-    {
-      "src": "/api/stats/(.*)",
-      "dest": "/api/management.js"
-    },
-    {
-      "src": "/api/reports/(.*)",
-      "dest": "/api/management.js"
-    },
-    {
-      "src": "/api/cart/(.*)",
-      "dest": "/api/commerce.js"
-    },
-    {
-      "src": "/api/orders/(.*)",
-      "dest": "/api/commerce.js"
-    },
-    {
-      "src": "/api/sales/(.*)",
-      "dest": "/api/commerce.js"
-    },
-    {
-      "src": "/api/auth",
-      "dest": "/api/core.js"
-    },
-    {
-      "src": "/api/products",
-      "dest": "/api/core.js"
-    },
-    {
-      "src": "/api/store_products",
-      "dest": "/api/core.js"
-    },
-    {
-      "src": "/api/farms",
-      "dest": "/api/core.js"
-    },
-    {
-      "src": "/api/admin",
-      "dest": "/api/management.js"
-    },
-    {
-      "src": "/api/finance",
-      "dest": "/api/management.js"
-    },
-    {
-      "src": "/api/stats",
-      "dest": "/api/management.js"
-    },
-    {
-      "src": "/api/reports",
-      "dest": "/api/management.js"
-    },
-    {
-      "src": "/api/cart",
-      "dest": "/api/commerce.js"
-    },
-    {
-      "src": "/api/orders",
-      "dest": "/api/commerce.js"
-    },
-    {
-      "src": "/api/sales",
-      "dest": "/api/commerce.js"
-    },
-    {
       "src": "/api/(.*)",
       "dest": "/api/index.js"
     },
@@ -100,15 +12,6 @@
     }
   ],
   "functions": {
-    "api/core.js": {
-      "maxDuration": 30
-    },
-    "api/management.js": {
-      "maxDuration": 30
-    },
-    "api/commerce.js": {
-      "maxDuration": 30
-    },
     "api/index.js": {
       "maxDuration": 30
     }

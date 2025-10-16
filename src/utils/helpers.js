@@ -1,54 +1,55 @@
-const { ObjectId } = require('mongodb');
-
 /**
- * Check if string is valid MongoDB ObjectId
+ * Check if string is valid UUID format (PostgreSQL primary key)
  */
-function isValidObjectId(id) {
-  return ObjectId.isValid(id) && String(new ObjectId(id)) === id;
+function isValidUUID(id) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
 }
 
 /**
- * Convert string to ObjectId safely
+ * Validate UUID format and return the UUID string
+ * All IDs in this database are UUIDs, not integers
  */
-function toObjectId(id) {
+function validateUUID(id) {
   if (!id) {
-    throw new Error('Invalid ObjectId format');
+    throw new Error('Invalid ID format: null or undefined');
   }
   
-  // If it's already an ObjectId, return it
-  if (id instanceof ObjectId) {
-    return id;
+  if (!isValidUUID(id)) {
+    throw new Error(`Invalid UUID format: ${id}`);
   }
   
-  // Convert to string and check if it's a valid ObjectId format
-  const idStr = id.toString();
-  if (idStr.length === 24 && /^[0-9a-fA-F]{24}$/.test(idStr)) {
-    return new ObjectId(idStr);
-  }
-  
-  // Try to create ObjectId anyway (for cases where MongoDB generated it)
-  try {
-    return new ObjectId(idStr);
-  } catch (error) {
-    throw new Error('Invalid ObjectId format');
-  }
+  return id;
 }
 
 /**
- * Convert ObjectId to string in object
+ * Convert to integer safely for pagination parameters (skip, limit, etc.)
+ */
+function toInteger(value) {
+  if (!value && value !== 0) {
+    return null;
+  }
+  
+  const intValue = parseInt(value, 10);
+  if (isNaN(intValue)) {
+    throw new Error(`Invalid integer format: ${value}`);
+  }
+  
+  return intValue;
+}
+
+/**
+ * Serialize document for API response
  */
 function serializeDoc(doc) {
   if (!doc) return null;
   
   const serialized = { ...doc };
-  if (serialized._id) {
-    serialized._id = serialized._id.toString();
-  }
   
-  // Convert other ObjectId fields
+  // Convert dates to ISO strings
   Object.keys(serialized).forEach(key => {
-    if (serialized[key] instanceof ObjectId) {
-      serialized[key] = serialized[key].toString();
+    if (serialized[key] instanceof Date) {
+      serialized[key] = serialized[key].toISOString();
     }
   });
   
@@ -71,32 +72,11 @@ function asyncHandler(fn) {
   };
 }
 
-/**
- * Verify user has access to farm
- */
-async function verifyFarmAccess(farmId, userId, db) {
-  const user = await db.collection('users').findOne({ _id: toObjectId(userId) });
-  
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  if (user.role === 'admin') {
-    return true;
-  }
-
-  if (user.farm_id && user.farm_id.toString() === farmId) {
-    return true;
-  }
-
-  throw new Error('Access denied to this farm');
-}
-
 module.exports = {
-  isValidObjectId,
-  toObjectId,
+  isValidUUID,
+  validateUUID,
+  toInteger,
   serializeDoc,
   serializeDocs,
   asyncHandler,
-  verifyFarmAccess,
 };

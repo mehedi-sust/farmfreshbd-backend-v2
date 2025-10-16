@@ -8,8 +8,10 @@ const JWT_EXPIRES_IN = '7d';
  * Generate JWT token
  */
 function generateToken(userId, email, role) {
+  // Ensure userId is always a string
+  const userIdStr = userId && userId.toString ? userId.toString() : userId;
   return jwt.sign(
-    { userId, email, role },
+    { userId: userIdStr, email, role },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -57,6 +59,10 @@ function authenticate(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
+  // Ensure userId is always a string if it exists
+  if (decoded.userId && decoded.userId.toString) {
+    decoded.userId = decoded.userId.toString();
+  }
   req.user = decoded;
   next();
 }
@@ -71,6 +77,10 @@ function optionalAuth(req, res, next) {
     const token = authHeader.substring(7);
     const decoded = verifyToken(token);
     if (decoded) {
+      // Ensure userId is always a string if it exists
+      if (decoded.userId && decoded.userId.toString) {
+        decoded.userId = decoded.userId.toString();
+      }
       req.user = decoded;
     }
   }
