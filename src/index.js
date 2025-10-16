@@ -7,7 +7,59 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Middleware
-app.use(cors());
+// Robust CORS configuration to support localhost, Vercel domains, and credentials
+const defaultOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'https://farmfreshbd-frontend.vercel.app',
+  'https://farmfreshbd-backend-v2.vercel.app',
+];
+
+const envOriginsRaw = (process.env.CORS_ALLOW_ORIGINS || '').trim();
+const allowAllOrigins = envOriginsRaw === '*';
+const envOrigins = (allowAllOrigins ? '' : envOriginsRaw)
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+const originWhitelist = new Set([...defaultOrigins, ...envOrigins]);
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // Non-browser or same-origin requests
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    if (originWhitelist.has(origin)) return true;
+    // Allow any Vercel or Cloudflare Tunnel subdomain
+    if (hostname.endsWith('.vercel.app')) return true;
+    if (hostname.endsWith('.trycloudflare.com')) return true;
+    return false;
+  } catch (_) {
+    // Fallback to direct string match if URL parsing fails
+    return originWhitelist.has(origin);
+  }
+};
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (allowAllOrigins) {
+      // Reflect request origin to support credentials with allow-all semantics
+      return callback(null, true);
+    }
+    const allowed = isAllowedOrigin(origin);
+    callback(null, allowed);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400, // 24 hours
+};
+
+app.use(cors(corsOptions));
+// Handle CORS preflight for all routes
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Request/Response Logger (like FastAPI)
