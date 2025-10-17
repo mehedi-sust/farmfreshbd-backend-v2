@@ -13,7 +13,7 @@ const storeProductsHandler = require('../src/routes/store_products');
 const farmsHandler = require('../src/routes/farms');
 const productCategoriesHandler = require('../src/routes/product_categories');
 const managementHandler = require('../src/routes/management');
-// const statsHandler = require('../src/routes/stats');
+const statsHandler = require('../src/routes/stats');
 // const adminHandler = require('../src/routes/admin');
 // const expensesHandler = require('../src/routes/expenses');
 // const investmentsHandler = require('../src/routes/investments');
@@ -62,7 +62,7 @@ app.use('/api/product_categories', productCategoriesHandler);
 app.use('/api', managementHandler);
 // Mount legacy core router LAST to avoid overlapping routes shadowing the newer implementations
 app.use('/api', coreHandler);
-// app.use('/api/stats', statsHandler);
+app.use('/api/stats', statsHandler);
 // app.use('/api/admin', adminHandler);
 // app.use('/api/expenses', expensesHandler);
 // app.use('/api/investments', investmentsHandler);
