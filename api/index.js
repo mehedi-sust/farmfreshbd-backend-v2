@@ -12,8 +12,10 @@ const productsHandler = require('../src/routes/products');
 const storeProductsHandler = require('../src/routes/store_products');
 const farmsHandler = require('../src/routes/farms');
 const productCategoriesHandler = require('../src/routes/product_categories');
+const commerceHandler = require('../src/routes/commerce');
 const managementHandler = require('../src/routes/management');
 const statsHandler = require('../src/routes/stats');
+const reportsHandler = require('../src/routes/reports');
 // const adminHandler = require('../src/routes/admin');
 // const expensesHandler = require('../src/routes/expenses');
 // const investmentsHandler = require('../src/routes/investments');
@@ -60,6 +62,12 @@ app.use('/api/farms', farmsHandler);
 app.use('/api/product_categories', productCategoriesHandler);
 // Management/finance routes (expenses, expense_types, investments)
 app.use('/api', managementHandler);
+// Commerce routes (cart, orders, sales) under both /api and root for compatibility
+app.use('/api', commerceHandler);
+app.use('/', commerceHandler);
+// Reports routes (PDF and CSV generation)
+app.use('/api/reports', reportsHandler);
+app.use('/reports', reportsHandler);
 // Mount legacy core router LAST to avoid overlapping routes shadowing the newer implementations
 app.use('/api', coreHandler);
 app.use('/api/stats', statsHandler);
