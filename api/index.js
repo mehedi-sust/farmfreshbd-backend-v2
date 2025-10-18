@@ -25,13 +25,47 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// CORS Middleware
+// CORS Middleware - Robust configuration for localhost and Vercel domains
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3005',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:3002',
+  'http://127.0.0.1:3005',
+  'https://farmfreshbd-frontend.vercel.app',
+  'https://farmfreshbd-backend-v2.vercel.app',
+];
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // Non-browser or same-origin requests
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    if (allowedOrigins.includes(origin)) return true;
+    // Allow any Vercel subdomain
+    if (hostname.endsWith('.vercel.app')) return true;
+    return false;
+  } catch (_) {
+    // Fallback to direct string match if URL parsing fails
+    return allowedOrigins.includes(origin);
+  }
+};
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  const allowed = isAllowedOrigin(origin);
+  
+  if (allowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
